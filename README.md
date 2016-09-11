@@ -10,9 +10,9 @@ Requires Java 8
 With maven:
 ```xml
     <dependency>
-        <groupId>com.github.pavradev.dockerbay</groupId>
-        <artifactId>dockerbay-junit</artifactId>
-          <version>${dockerbay.version}</version>
+        <groupId>com.github.pavradev</groupId>
+        <artifactId>dockerbay</artifactId>
+          <version>1.0.0</version>
         <scope>test</scope>
     </dependency>
 ```
@@ -26,4 +26,4 @@ With maven:
 ```
 
 ##Examples
-TBD
+Check [dockerbay-demo](https://github.com/pavradev/dockerbay-demo) project
