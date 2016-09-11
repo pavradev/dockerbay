@@ -1,6 +1,8 @@
 # dockerbay [![Build Status](https://travis-ci.org/pavradev/dockerbay.svg?branch=master)](https://travis-ci.org/pavradev/dockerbay)
-Docker based component test library
-
+**It is** Java library for component testing  
+**It does** orchestrate docker environment  
+**It uses** JUnit and Docker Java Client  
+Tested with docker version 1.11 on Linux
 ##Building
 ```bash
 mvn clean install
