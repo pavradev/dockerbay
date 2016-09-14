@@ -160,7 +160,11 @@ public class DockerClientImpl implements DockerClientWrapper {
     @Override
     public void createNetwork(String networkName) {
         try {
-            dockerClient.createNetworkCmd().withDriver("bridge").withName(networkName).exec();
+            dockerClient.createNetworkCmd()
+                    .withDriver("bridge")
+                    .withName(networkName)
+                    .withCheckDuplicate(true)
+                    .exec();
         } catch (Exception e) {
             throw new DockerClientWrapperException("Failed to create network " + networkName, e);
         }
