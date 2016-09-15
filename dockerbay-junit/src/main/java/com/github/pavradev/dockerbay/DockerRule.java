@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
+
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.MultipleFailureException;
@@ -14,26 +15,18 @@ import org.junit.runners.model.Statement;
  */
 public class DockerRule implements TestRule {
 
+    private EnvironmentFactory environmentFactory;
     private Environment environment;
     private List<ContainerConfig> containers = new ArrayList<>();
-
-    private EnvironmentFactory environmentFactory;
 
     private DockerRule(EnvironmentFactory environmentFactory) {
         this.environmentFactory = environmentFactory;
     }
 
-    public static DockerRule withEnvironmentFactory(EnvironmentFactory envFactory){
-        return new DockerRule(envFactory);
-    }
-
-    public static DockerRule getDefault(){
-        return new DockerRule(EnvironmentFactory.withDockerClientWrapper(new DockerClientImpl()));
-    }
-
-    public DockerRule addContainer(ContainerConfig container) {
-        containers.add(container);
-        return this;
+    public void setContainers(List<ContainerConfig> containers) {
+        if (containers != null) {
+            this.containers.addAll(containers);
+        }
     }
 
     public Environment getEnvironment() {
@@ -68,4 +61,33 @@ public class DockerRule implements TestRule {
         };
     }
 
+    public static DockerRuleBuilder builder() {
+        return new DockerRuleBuilder();
+    }
+
+    public static class DockerRuleBuilder {
+        private EnvironmentFactory environmentFactory;
+        private List<ContainerConfig> containers = new ArrayList<>();
+
+        private DockerRuleBuilder() {
+        }
+
+        public DockerRuleBuilder withEnvironmentFactory(EnvironmentFactory envFactory) {
+            this.environmentFactory = envFactory;
+            return this;
+        }
+
+        public DockerRuleBuilder addContainer(ContainerConfig container) {
+            if (container != null) {
+                this.containers.add(container);
+            }
+            return this;
+        }
+
+        public DockerRule build() {
+            DockerRule dockerRule = new DockerRule(this.environmentFactory);
+            dockerRule.setContainers(this.containers);
+            return dockerRule;
+        }
+    }
 }

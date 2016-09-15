@@ -27,7 +27,7 @@ public class DockerRuleTest {
         env = mock(Environment.class);
         EnvironmentFactory envFactoryMock = mock(EnvironmentFactory.class);
         doReturn(env).when(envFactoryMock).getWithId(anyString());
-        dockerRule = DockerRule.withEnvironmentFactory(envFactoryMock);
+        dockerRule = DockerRule.builder().withEnvironmentFactory(envFactoryMock).build();
 
         description = mock(Description.class);
         doReturn(DockerRuleTest.class).when(description).getTestClass();

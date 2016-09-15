@@ -18,6 +18,7 @@
         <module>dockerbay-core</module>
         <module>dockerbay-docker-client</module>
         <module>dockerbay-junit</module>
+        <module>dockerbay</module>
     </modules>
 
     <dependencyManagement>
@@ -41,6 +42,20 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.0.1</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>jar-no-fork</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
