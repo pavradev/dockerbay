@@ -14,7 +14,7 @@ With maven:
     <dependency>
         <groupId>com.github.pavradev</groupId>
         <artifactId>dockerbay</artifactId>
-          <version>1.0.0</version>
+          <version>1.0</version>
         <scope>test</scope>
     </dependency>
 ```
@@ -28,4 +28,4 @@ With maven:
 ```
 
 ##Examples
-Check [dockerbay-demo](https://github.com/pavradev/dockerbay-demo) project
+Check [dockerbay-demo](https://github.com/pavradev/dockerbay-demo) project and [video](https://www.youtube.com/watch?v=ujVR2keGjcM) that explains how dockerbay works
