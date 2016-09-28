@@ -26,8 +26,9 @@ public class DockerRuleTest {
     public void beforeEachTest(){
         env = mock(Environment.class);
         EnvironmentFactory envFactoryMock = mock(EnvironmentFactory.class);
-        doReturn(env).when(envFactoryMock).getWithId(anyString());
-        dockerRule = DockerRule.builder().withEnvironmentFactory(envFactoryMock).build();
+        doReturn(env).when(envFactoryMock).makeEnvironment(anyString());
+
+        dockerRule = DockerRule.withEnvironmentFactory(envFactoryMock);
 
         description = mock(Description.class);
         doReturn(DockerRuleTest.class).when(description).getTestClass();
@@ -37,7 +38,7 @@ public class DockerRuleTest {
 
     @Test
     public void shouldInitializeEnvBeforeTest() throws Throwable {
-        doReturn(Environment.Status.INITIALIZED).when(env).getStatus();
+        doReturn(Environment.EnvironmentState.INITIALIZED).when(env).getState();
         Statement statement = dockerRule.apply(baseStatement, description);
         statement.evaluate();
 
@@ -48,7 +49,7 @@ public class DockerRuleTest {
 
     @Test
     public void shouldCleanupEnvAfterTest() throws Throwable {
-        doReturn(Environment.Status.INITIALIZED).when(env).getStatus();
+        doReturn(Environment.EnvironmentState.INITIALIZED).when(env).getState();
         Statement statement = dockerRule.apply(baseStatement, description);
         statement.evaluate();
 
@@ -59,7 +60,7 @@ public class DockerRuleTest {
 
     @Test
     public void shouldSkipTestIfEnvFailedToInitialize() throws Throwable {
-        doReturn(Environment.Status.PARTIALLY_INITIALIZED).when(env).getStatus();
+        doReturn(Environment.EnvironmentState.PARTIALLY_INITIALIZED).when(env).getState();
         Statement statement = dockerRule.apply(baseStatement, description);
 
         try {

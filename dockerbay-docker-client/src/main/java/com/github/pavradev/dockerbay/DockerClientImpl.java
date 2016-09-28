@@ -37,81 +37,79 @@ public class DockerClientImpl implements DockerClientWrapper {
     }
 
     @Override
-    public void createContainer(Container createContainerRequest) {
+    public void createContainer(Container container) {
         try {
             HostConfig hostConfig = new HostConfig()
-                    .withNetworkMode(createContainerRequest.getNetworkName());
+                    .withNetworkMode(container.getNetwork().getName());
 
-            if (!createContainerRequest.getLinks().isEmpty()) {
-                List<Link> links = createContainerRequest.getLinks().stream().map(l -> {
-                    String[] link = l.split(":");
-                    return new Link(link[0], link[1]);
-                }).collect(Collectors.toList());
-                hostConfig.withLinks(new Links(links));
-            }
-            if (createContainerRequest.getExposedPort() != null) {
+            List<Link> links = container.getNetwork().getContainers().stream()
+                    .map(c -> new Link(c.getName(), c.getAlias()))
+                    .collect(Collectors.toList());
+            hostConfig.withLinks(new Links(links));
+
+            if (container.getExposedPort() != null) {
                 PortBinding portBinding = new PortBinding(
                         Ports.Binding.bindIp("0.0.0.0"),
-                        ExposedPort.tcp(createContainerRequest.getExposedPort()));
+                        ExposedPort.tcp(container.getExposedPort()));
                 hostConfig.withPortBindings(new Ports(portBinding));
             }
 
             List<String> env = new ArrayList<>();
-            createContainerRequest.getEnvVariables().entrySet().forEach(e -> {
+            container.getEnvVariables().entrySet().forEach(e -> {
                 env.add(e.getKey());
                 env.add(e.getValue());
             });
 
-            CreateContainerCmd createContainerCmd = dockerClient.createContainerCmd(createContainerRequest.getImage())
-                    .withName(createContainerRequest.getName())
+            CreateContainerCmd createContainerCmd = dockerClient.createContainerCmd(container.getImage())
+                    .withName(container.getName())
                     .withHostConfig(hostConfig)
                     .withEnv(env);
 
-            if (createContainerRequest.getCmd() != null) {
-                createContainerCmd.withCmd(createContainerRequest.getCmd());
+            if (container.getCmd() != null) {
+                createContainerCmd.withCmd(container.getCmd());
             }
-            if (createContainerRequest.getExposedPort() != null) {
-                createContainerCmd.withExposedPorts(ExposedPort.tcp(createContainerRequest.getExposedPort()));
+            if (container.getExposedPort() != null) {
+                createContainerCmd.withExposedPorts(ExposedPort.tcp(container.getExposedPort()));
             }
 
             createContainerCmd.exec();
 
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to create container " + createContainerRequest.getName(), e);
+            throw new DockerClientWrapperException("Failed to create container " + container.getName(), e);
         }
     }
 
     @Override
-    public void startContainer(String containerName) {
+    public void startContainer(Container container) {
         try {
-            dockerClient.startContainerCmd(containerName).exec();
+            dockerClient.startContainerCmd(container.getName()).exec();
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to start container " + containerName, e);
+            throw new DockerClientWrapperException("Failed to start container " + container.getName(), e);
         }
     }
 
     @Override
-    public void stopContainer(String containerName) {
+    public void stopContainer(Container container) {
         try {
-            dockerClient.killContainerCmd(containerName).exec(); //Killing is faster and more reliable
+            dockerClient.killContainerCmd(container.getName()).exec(); //Killing is faster and more reliable
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to stop container " + containerName, e);
+            throw new DockerClientWrapperException("Failed to stop container " + container.getName(), e);
         }
     }
 
     @Override
-    public void removeContainer(String containerName) {
+    public void removeContainer(Container container) {
         try {
-            dockerClient.removeContainerCmd(containerName).exec();
+            dockerClient.removeContainerCmd(container.getName()).exec();
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to remove container " + containerName, e);
+            throw new DockerClientWrapperException("Failed to remove container " + container.getName(), e);
         }
     }
 
     @Override
-    public Map<Integer, Integer> getPortMappings(String containerName) {
+    public Map<Integer, Integer> getPortMappings(Container container) {
         try {
-            InspectContainerResponse containerInfo = dockerClient.inspectContainerCmd(containerName).exec();
+            InspectContainerResponse containerInfo = dockerClient.inspectContainerCmd(container.getName()).exec();
             Ports ports = containerInfo.getNetworkSettings().getPorts();
             Map<Integer, Integer> result = new HashMap<>();
             ports.getBindings().entrySet().forEach(e -> {
@@ -123,12 +121,12 @@ public class DockerClientImpl implements DockerClientWrapper {
             });
             return result;
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to inspect container " + containerName, e);
+            throw new DockerClientWrapperException("Failed to inspect container " + container.getName(), e);
         }
     }
 
     @Override
-    public String getContainerLogs(String containerName) {
+    public String getContainerLogs(Container container) {
         try {
             LogContainerResultCallback loggingCallback = new LogContainerResultCallback() {
                 private final StringBuffer log = new StringBuffer();
@@ -144,7 +142,7 @@ public class DockerClientImpl implements DockerClientWrapper {
                 }
             };
 
-            dockerClient.logContainerCmd(containerName)
+            dockerClient.logContainerCmd(container.getName())
                     .withStdOut(true)
                     .withStdErr(true)
                     .exec(loggingCallback);
@@ -153,29 +151,29 @@ public class DockerClientImpl implements DockerClientWrapper {
             return loggingCallback.toString();
 
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to read container logs from " + containerName, e);
+            throw new DockerClientWrapperException("Failed to read container logs from " + container.getName(), e);
         }
     }
 
     @Override
-    public void createNetwork(String networkName) {
+    public void createNetwork(Network network) {
         try {
             dockerClient.createNetworkCmd()
                     .withDriver("bridge")
-                    .withName(networkName)
+                    .withName(network.getName())
                     .withCheckDuplicate(true)
                     .exec();
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to create network " + networkName, e);
+            throw new DockerClientWrapperException("Failed to create network " + network.getName(), e);
         }
     }
 
     @Override
-    public void deleteNetwork(String networkName) {
+    public void deleteNetwork(Network network) {
         try {
-            dockerClient.removeNetworkCmd(networkName).exec();
+            dockerClient.removeNetworkCmd(network.getName()).exec();
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to delete network " + networkName, e);
+            throw new DockerClientWrapperException("Failed to delete network " + network.getName(), e);
         }
     }
 

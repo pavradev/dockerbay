@@ -10,7 +10,7 @@ import java.util.Map;
 public class ContainerConfig {
     public static final int DEFAULT_TIMEOUT_SEC = 60;
 
-    private String name;
+    private String alias;
     private String image;
 
     private List<String> cmd;
@@ -25,8 +25,8 @@ public class ContainerConfig {
     private ContainerConfig() {
     }
 
-    public String getName() {
-        return name;
+    public String getAlias() {
+        return alias;
     }
 
     public String getImage() {
@@ -72,8 +72,8 @@ public class ContainerConfig {
             container = new ContainerConfig();
         }
 
-        public ContainerConfigBuilder withName(String name) {
-            container.name = name;
+        public ContainerConfigBuilder withAlias(String alias) {
+            container.alias = alias;
             return this;
         }
 
@@ -121,8 +121,8 @@ public class ContainerConfig {
             if (container.image == null) {
                 throw new IllegalArgumentException("Container image cannot be empty");
             }
-            if (container.name == null) {
-                throw new IllegalArgumentException("Container name cannot be empty");
+            if (container.alias == null) {
+                throw new IllegalArgumentException("Container alias cannot be empty");
             }
             if (container.waitForUrl != null && container.exposedPort == null) {
                 throw new IllegalArgumentException("You cannot wait for URL without exposing a port");

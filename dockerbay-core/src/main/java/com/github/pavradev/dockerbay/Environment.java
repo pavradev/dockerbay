@@ -1,247 +1,110 @@
 package com.github.pavradev.dockerbay;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.Response;
+import java.util.Optional;
 
 import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstraction of the docker environment for component test.
- * Stateful.
+ * Abstraction of the unique environment for component test. Stateful.
  */
-class Environment {
+public class Environment {
     private static final Logger log = LoggerFactory.getLogger(Environment.class);
 
-    private static final int BETWEEN_RETRY_MILLIS = 2000;
-    private Status status;
+    public enum EnvironmentState {UNINITIALIZED, INITIALIZED, PARTIALLY_INITIALIZED}
 
-    public enum Status {UNINITIALIZED, INITIALIZED, PARTIALLY_INITIALIZED, CLEANED}
+    private EnvironmentState state;
+    private Network network;
+    private List<Container> containers = new ArrayList<>();
 
-    private DockerClientWrapper dockerClient;
-    private Client httpClient;
-
-    private String networkName;
-
-    private List<ContainerConfig> containers = new ArrayList<>();
-    private Deque<String> startedContainers = new LinkedList<>();
-
-    private Map<String, ContainerConfig> containerConfigMap = new HashMap<>();
-    private Map<String, Integer> allocatedPortsPerContainer = new HashMap<>();
-
-    private Environment(String id) {
-        this.networkName = id;
-        this.status = Status.UNINITIALIZED;
+    private Environment(Network network) {
+        this.state = EnvironmentState.UNINITIALIZED;
+        this.network = network;
     }
 
-    public static Environment withId(String id) {
-        return new Environment(id);
+    public static Environment withNetwork(Network network) {
+        return new Environment(network);
     }
 
-    public void setDockerClient(DockerClientWrapper dockerClient) {
-        this.dockerClient = dockerClient;
+    public void addContainer(Container container) {
+        this.containers.add(container);
+        container.attachToNetwork(network);
     }
 
-    public void setHttpClient(Client httpClient) {
-        this.httpClient = httpClient;
+    public EnvironmentState getState() {
+        return this.state;
     }
 
-    public void setContainers(List<ContainerConfig> containers) {
-        this.containers = new ArrayList<>(containers);
+    public List<Container> getContainers() {
+        return this.containers;
     }
 
-    public Status getStatus() {
-        return this.status;
-    }
-
-    private void setStatus(Status status) {
-        this.status = status;
-    }
-
-    public Integer getAllocatedPort(String containerName) {
-        return this.allocatedPortsPerContainer.get(containerName);
-    }
-
-    public String buildUniqueContainerName(String name) {
-        return this.networkName + "-" + name;
+    public Optional<Container> findContainerByAlias(String alias){
+        return this.containers.stream().filter(c -> c.getAlias().equals(alias)).findAny();
     }
 
     public void initialize() {
-        validateStatus(Status.UNINITIALIZED);
+        validateState(EnvironmentState.UNINITIALIZED);
         try {
-            pullImages();
-            createNetwork();
-            createAndStartContainers();
-            setStatus(Status.INITIALIZED);
+            network.create();
+            containers.forEach(Container::create);
+            containers.forEach(Container::start);
+            setState(EnvironmentState.INITIALIZED);
         } catch (Exception e) {
-            log.error("Failed to initialize environment {}" + this.networkName, e);
-            setStatus(Status.PARTIALLY_INITIALIZED);
+            log.error("Failed to initialize environment", e);
+            setState(EnvironmentState.PARTIALLY_INITIALIZED);
         }
     }
 
-    private void validateStatus(Status... expectedStatuses) {
-        if (!Arrays.stream(expectedStatuses).anyMatch(this.status::equals)) {
-            throw new EnvironmentException(String.format("Invalid environment status. Expected %s but was %s", expectedStatuses, this.status));
+    private void setState(EnvironmentState state) {
+        this.state = state;
+    }
+
+    private void validateState(EnvironmentState... expectedStates) {
+        if (!Arrays.stream(expectedStates).anyMatch(this.state::equals)) {
+            throw new EnvironmentException(String.format("Invalid environment state. Expected %s but was %s", expectedStates, this.state));
         }
-    }
-
-    private void pullImages() {
-        Set<String> uniqueImages = containers.stream()
-                .map(ContainerConfig::getImage)
-                .collect(Collectors.toSet());
-        for (String image : uniqueImages) {
-            dockerClient.pullImage(image);
-        }
-    }
-
-    private void createNetwork() {
-        log.info("Creating network {}", networkName);
-        dockerClient.createNetwork(this.networkName);
-    }
-
-    private void createAndStartContainers() {
-        for (ContainerConfig container : this.containers) {
-            createAndStartContainer(container);
-            waitForUrlIfNeeded(container);
-            waitForLogEntryIfNeeded(container);
-        }
-    }
-
-    private void waitForLogEntryIfNeeded(ContainerConfig container) {
-        String containerName = buildUniqueContainerName(container.getName());
-        if (container.getWaitForLogEntry() != null) {
-            doWithTimeout(() -> {
-                String containerLogs = dockerClient.getContainerLogs(containerName);
-                return containerLogs.contains(container.getWaitForLogEntry());
-            }, container.getTimeoutSec());
-        }
-    }
-
-    private void waitForUrlIfNeeded(ContainerConfig container) {
-        if (container.getWaitForUrl() != null) {
-            Integer port = getAllocatedPort(container.getName());
-            if (port == null) {
-                throw new EnvironmentException("No allocated port for container" + container.getName());
-            }
-            final String target = "http://localhost:" + port;
-            doWithTimeout(() -> {
-                final Response response = httpClient.target(target).path(container.getWaitForUrl()).request().get();
-                return Response.Status.Family.SUCCESSFUL.equals(Response.Status.Family.familyOf(response.getStatus()));
-            }, container.getTimeoutSec());
-        }
-    }
-
-    private void createAndStartContainer(ContainerConfig container) {
-        final Container createContainerRequest = getCreateContainerRequest(container);
-        this.startedContainers.push(createContainerRequest.getName());
-        this.containerConfigMap.put(createContainerRequest.getName(), container);
-        dockerClient.createContainer(createContainerRequest);
-        log.info("Starting container {}", createContainerRequest.getName());
-        dockerClient.startContainer(createContainerRequest.getName());
-        if (container.getExposedPort() != null) {
-            Map<Integer, Integer> portMappings = dockerClient.getPortMappings(createContainerRequest.getName());
-            Integer localPort = portMappings.get(container.getExposedPort());
-            this.allocatedPortsPerContainer.put(container.getName(), localPort);
-        }
-    }
-
-    private void doWithTimeout(Supplier<Boolean> command, Integer timeoutSec) {
-        Duration timeout = Duration.ofSeconds(timeoutSec);
-        final Instant start = Instant.now();
-        while (true) {
-            final Duration timeElapsed = Duration.between(start, Instant.now());
-            if (timeout.minus(timeElapsed).isNegative()) {
-                throw new EnvironmentException(String.format("Timeout exception"));
-            }
-            try {
-                if (command.get()) {
-                    return;
-                }
-            } catch (Exception e) {
-                log.debug("Error when executing a command");
-            }
-            try {
-                Thread.sleep(BETWEEN_RETRY_MILLIS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    private Container getCreateContainerRequest(ContainerConfig container) {
-        Container.CreateContainerRequestBuilder containerCreateRequestBuilder = Container.builder();
-        containerCreateRequestBuilder.withName(buildUniqueContainerName(container.getName()));
-        containerCreateRequestBuilder.withAlias(container.getName());
-        containerCreateRequestBuilder.fromImage(container.getImage());
-        containerCreateRequestBuilder.inNetwork(this.networkName);
-        List<String> links = this.containers.stream()
-                .filter(c -> c.getName() != container.getName())
-                .map(c -> String.format("%s:%s", buildUniqueContainerName(c.getName()), c.getName()))
-                .collect(Collectors.toList());
-        containerCreateRequestBuilder.withLinks(links);
-        containerCreateRequestBuilder.withExposedPort(container.getExposedPort());
-
-        containerCreateRequestBuilder.withCmd(container.getCmd());
-        containerCreateRequestBuilder.withEnvVariables(container.getEnvVariables());
-        return containerCreateRequestBuilder.build();
     }
 
     public void cleanup() {
-        validateStatus(Status.INITIALIZED, Status.PARTIALLY_INITIALIZED);
-        stopAndRemoveContainersQuietly();
-        deleteNetworkQuietly();
-        setStatus(Status.CLEANED);
+        validateState(EnvironmentState.INITIALIZED, EnvironmentState.PARTIALLY_INITIALIZED);
+        stopAndRemoveContainersQuietly(this.containers);
+        deleteNetworkQuietly(this.network);
+        setState(EnvironmentState.UNINITIALIZED);
     }
 
-    private void stopAndRemoveContainersQuietly() {
-        while (!startedContainers.isEmpty()) {
-            String container = this.startedContainers.pop();
-            stopAndRemoveContainerQuietly(container);
-        }
+    private void stopAndRemoveContainersQuietly(List<Container> containers) {
+        List<Container> reversed = new ArrayList<>(this.containers);
+        Collections.reverse(reversed);
+        reversed.forEach(this::stopAndRemoveContainerQuietly);
     }
 
-    private void stopAndRemoveContainerQuietly(String container) {
-        if (this.containerConfigMap.get(container).getDisplayLogs()) {
-            try {
-                String logs = dockerClient.getContainerLogs(container);
-                log.debug(logs);
-            } catch (Exception e) {
-                log.error(String.format("Failed to display logs for container %s in environment %s ", container, this.networkName), e);
-            }
+    private void stopAndRemoveContainerQuietly(Container container) {
+        try {
+            log.info("Stopping container {}", container.getName());
+            container.stop();
+        } catch (Exception e) {
+            log.error("Failed to stop container ", container.getName(), e);
         }
         try {
-            log.info("Stopping container {}", container);
-            dockerClient.stopContainer(container);
+            container.remove();
         } catch (Exception e) {
-            log.error(String.format("Failed to stop container %s in environment %s ", container, this.networkName), e);
-        }
-        try {
-            dockerClient.removeContainer(container);
-        } catch (Exception e) {
-            log.error(String.format("Failed to remove container %s in environment %s ", container, this.networkName), e);
+            log.error("Failed to remove container ", container.getName(), e);
         }
     }
 
-    private void deleteNetworkQuietly() {
+    private void deleteNetworkQuietly(Network network) {
         try {
-            log.info("Delete network {}", networkName);
-            dockerClient.deleteNetwork(this.networkName);
+            log.info("Delete network {}", network.getName());
+            network.delete();
         } catch (Exception e) {
-            log.error("Failed to delete network ", e);
+            log.error("Failed to delete network " + network.getName(), e);
         }
     }
 }

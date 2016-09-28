@@ -17,16 +17,13 @@ public class DockerRule implements TestRule {
 
     private EnvironmentFactory environmentFactory;
     private Environment environment;
-    private List<ContainerConfig> containers = new ArrayList<>();
 
-    private DockerRule(EnvironmentFactory environmentFactory) {
-        this.environmentFactory = environmentFactory;
+    private DockerRule(EnvironmentFactory dockerFactory) {
+        this.environmentFactory = dockerFactory;
     }
 
-    public void setContainers(List<ContainerConfig> containers) {
-        if (containers != null) {
-            this.containers.addAll(containers);
-        }
+    public static DockerRule withEnvironmentFactory(EnvironmentFactory environmentFactory){
+        return new DockerRule(environmentFactory);
     }
 
     public Environment getEnvironment() {
@@ -35,18 +32,14 @@ public class DockerRule implements TestRule {
 
     @Override
     public Statement apply(Statement statement, Description description) {
-        String envId = description.getTestClass().getSimpleName();
-        if (description.getMethodName() != null) {
-            envId += ("-" + description.getMethodName());
-        }
-        environment = environmentFactory.getWithId(envId);
-        environment.setContainers(containers);
+        String id = extractId(description);
+        environment = environmentFactory.makeEnvironment(id);
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 List<Throwable> errors = new ArrayList<>();
                 environment.initialize();
-                if (Environment.Status.INITIALIZED.equals(environment.getStatus())) {
+                if (Environment.EnvironmentState.INITIALIZED.equals(environment.getState())) {
                     try {
                         statement.evaluate();
                     } catch (Throwable e) {
@@ -61,33 +54,12 @@ public class DockerRule implements TestRule {
         };
     }
 
-    public static DockerRuleBuilder builder() {
-        return new DockerRuleBuilder();
+    private String extractId(Description description) {
+        String id = description.getTestClass().getSimpleName();
+        if (description.getMethodName() != null) {
+            id += ("-" + description.getMethodName());
+        }
+        return id;
     }
 
-    public static class DockerRuleBuilder {
-        private EnvironmentFactory environmentFactory;
-        private List<ContainerConfig> containers = new ArrayList<>();
-
-        private DockerRuleBuilder() {
-        }
-
-        public DockerRuleBuilder withEnvironmentFactory(EnvironmentFactory envFactory) {
-            this.environmentFactory = envFactory;
-            return this;
-        }
-
-        public DockerRuleBuilder addContainer(ContainerConfig container) {
-            if (container != null) {
-                this.containers.add(container);
-            }
-            return this;
-        }
-
-        public DockerRule build() {
-            DockerRule dockerRule = new DockerRule(this.environmentFactory);
-            dockerRule.setContainers(this.containers);
-            return dockerRule;
-        }
-    }
 }

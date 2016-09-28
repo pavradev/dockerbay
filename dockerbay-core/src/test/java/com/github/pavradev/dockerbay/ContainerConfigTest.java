@@ -19,14 +19,14 @@ public class ContainerConfigTest {
     @Test(expected = IllegalArgumentException.class)
     public void shouldThrowIfImageEmpty() {
         ContainerConfig.builder()
-                .withName("name")
+                .withAlias("name")
                 .build();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void shouldThrowIfWaitForUrlWithoutExposedPort() {
         ContainerConfig.builder()
-                .withName("name")
+                .withAlias("name")
                 .withImage("image")
                 .waitForUrl("/url")
                 .build();
@@ -35,7 +35,7 @@ public class ContainerConfigTest {
     @Test
     public void shouldBuildContainerWithParameters() {
         ContainerConfig containerConfig = ContainerConfig.builder()
-                .withName("name")
+                .withAlias("name")
                 .withImage("image")
                 .withCmd(Arrays.asList("cmd"))
                 .addToEnv("--param", "value")
@@ -46,7 +46,7 @@ public class ContainerConfigTest {
                 .waitTimeoutSec(100)
                 .build();
 
-        assertThat(containerConfig.getName(), equalTo("name"));
+        assertThat(containerConfig.getAlias(), equalTo("name"));
         assertThat(containerConfig.getImage(), equalTo("image"));
         assertThat(containerConfig.getCmd().get(0), equalTo("cmd"));
         assertThat(containerConfig.getEnvVariables().get("--param"), equalTo("value"));
@@ -60,7 +60,7 @@ public class ContainerConfigTest {
     @Test
     public void shouldSetDefaultTimeoutIfNotSpecified() {
         ContainerConfig containerConfig = ContainerConfig.builder()
-                .withName("name")
+                .withAlias("name")
                 .withImage("image")
                 .build();
 

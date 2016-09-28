@@ -1,38 +1,55 @@
 package com.github.pavradev.dockerbay;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 
 /**
- * Factory that produces Environments
+ * Creates instances of Environment
  */
 public class EnvironmentFactory {
-
+    private DockerClientWrapper dockerClient;
     private Client httpClient;
 
-    private DockerClientWrapper dockerClient;
+    private List<ContainerConfig> containerConfigList = new ArrayList<>();
 
-    private EnvironmentFactory(DockerClientWrapper dockerClientWrapper){
-        this(dockerClientWrapper,  ClientBuilder.newClient());
+    private EnvironmentFactory() {
     }
 
-    private EnvironmentFactory(DockerClientWrapper dockerClientWrapper, Client client){
-        this.dockerClient = dockerClientWrapper;
-        this.httpClient = client;
+    public static EnvironmentFactory get() {
+        return new EnvironmentFactory();
     }
 
-    public static EnvironmentFactory withDockerClientWrapper(DockerClientWrapper dockerClientWrapper){
-        return new EnvironmentFactory(dockerClientWrapper);
+    public EnvironmentFactory withDockerClient(DockerClientWrapper dockerClient) {
+        this.dockerClient = dockerClient;
+        return this;
     }
 
-    public static EnvironmentFactory withDockerClientWrapperAndHttpClient(DockerClientWrapper dockerClientWrapper, Client httpClient){
-        return new EnvironmentFactory(dockerClientWrapper, httpClient);
+    public EnvironmentFactory withHttpClient(Client httpClient) {
+        this.httpClient = httpClient;
+        return this;
     }
 
-    public Environment getWithId(String id) {
-        Environment environment = Environment.withId(id);
-        environment.setDockerClient(dockerClient);
-        environment.setHttpClient(httpClient);
+    public EnvironmentFactory withContainers(ContainerConfig... containers) {
+        this.containerConfigList = Arrays.asList(containers);
+        return this;
+    }
+
+    public Environment makeEnvironment(String id) {
+        Network network = Network.withName(id);
+        network.setDockerClient(dockerClient);
+
+        Environment environment = Environment.withNetwork(network);
+
+        for (ContainerConfig containerConfig : this.containerConfigList) {
+            Container container = Container.wihtConfig(containerConfig);
+            container.setDockerClient(dockerClient);
+            container.setHttpClient(httpClient);
+            environment.addContainer(container);
+        }
+
         return environment;
     }
 }

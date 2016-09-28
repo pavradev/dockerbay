@@ -7,21 +7,21 @@ import java.util.Map;
  */
 public interface DockerClientWrapper {
 
-    void createContainer(Container containerConfig);
+    void createContainer(Container container);
 
-    void startContainer(String containerName);
+    void startContainer(Container container);
 
-    void stopContainer(String containerName);
+    void stopContainer(Container container);
 
-    void removeContainer(String containerName);
+    void removeContainer(Container container);
 
-    Map<Integer, Integer> getPortMappings(String containerName);
+    Map<Integer, Integer> getPortMappings(Container container);
 
-    String getContainerLogs(String containerName);
+    String getContainerLogs(Container container);
 
-    void createNetwork(String networkName);
+    void createNetwork(Network network);
 
-    void deleteNetwork(String networkName);
+    void deleteNetwork(Network network);
 
     void pullImage(String imageName);
 }
