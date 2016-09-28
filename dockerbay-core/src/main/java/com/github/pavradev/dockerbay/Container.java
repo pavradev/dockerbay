@@ -9,7 +9,7 @@ import java.util.Map;
  * Aggregates all necessary information to start Docker container.
  * Environment specific.
  */
-public class CreateContainerRequest {
+public class Container {
     private String alias;
     private String name;
     private String image;
@@ -22,7 +22,7 @@ public class CreateContainerRequest {
     //so far only one port can be exposed
     private Integer exposedPort;
 
-    private CreateContainerRequest() {
+    private Container() {
     }
 
     public String getAlias() {
@@ -62,34 +62,34 @@ public class CreateContainerRequest {
     }
 
     public static class CreateContainerRequestBuilder {
-        private CreateContainerRequest createContainerRequest = new CreateContainerRequest();
+        private Container container = new Container();
 
         private CreateContainerRequestBuilder() {
         }
 
         public CreateContainerRequestBuilder withName(String name) {
-            createContainerRequest.name = name;
+            container.name = name;
             return this;
         }
 
         public CreateContainerRequestBuilder withAlias(String alias) {
-            createContainerRequest.alias = alias;
+            container.alias = alias;
             return this;
         }
 
         public CreateContainerRequestBuilder fromImage(String image) {
-            createContainerRequest.image = image;
+            container.image = image;
             return this;
         }
 
         public CreateContainerRequestBuilder inNetwork(String network) {
-            createContainerRequest.networkName = network;
+            container.networkName = network;
             return this;
         }
 
         public CreateContainerRequestBuilder withCmd(List<String> cmd) {
             if (cmd != null) {
-                createContainerRequest.cmd = new ArrayList<>(cmd);
+                container.cmd = new ArrayList<>(cmd);
             }
             return this;
         }
@@ -99,31 +99,31 @@ public class CreateContainerRequest {
             for (Map.Entry<String, String> variable : envVariables.entrySet()) {
                 envVariablesCopy.put(variable.getKey(), variable.getValue());
             }
-            createContainerRequest.envVariables = envVariablesCopy;
+            container.envVariables = envVariablesCopy;
             return this;
         }
 
         public CreateContainerRequestBuilder withLinks(List<String> links) {
             if (links != null) {
-                createContainerRequest.links = new ArrayList<String>(links);
+                container.links = new ArrayList<String>(links);
             }
             return this;
         }
 
         public CreateContainerRequestBuilder withExposedPort(Integer exposedPort) {
-            createContainerRequest.exposedPort = exposedPort;
+            container.exposedPort = exposedPort;
             return this;
         }
 
-        CreateContainerRequest build() {
-            if (this.createContainerRequest.image == null) {
+        Container build() {
+            if (this.container.image == null) {
                 throw new IllegalArgumentException("Container image cannot be empty");
             }
-            if (this.createContainerRequest.name == null) {
+            if (this.container.name == null) {
                 throw new IllegalArgumentException("Container name cannot be empty");
             }
-            CreateContainerRequest result = this.createContainerRequest;
-            this.createContainerRequest = null;
+            Container result = this.container;
+            this.container = null;
             return result;
         }
     }

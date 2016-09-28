@@ -37,7 +37,7 @@ public class DockerClientImpl implements DockerClientWrapper {
     }
 
     @Override
-    public void createContainer(CreateContainerRequest createContainerRequest) {
+    public void createContainer(Container createContainerRequest) {
         try {
             HostConfig hostConfig = new HostConfig()
                     .withNetworkMode(createContainerRequest.getNetworkName());

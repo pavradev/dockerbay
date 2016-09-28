@@ -13,14 +13,14 @@ public class CreateContainerRequestTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void shouldThrowIfContainerNameEmpty() {
-        CreateContainerRequest.builder()
+        Container.builder()
                 .fromImage("image")
                 .build();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void shouldThrowIfImageEmpty() {
-        CreateContainerRequest.builder()
+        Container.builder()
                 .withName("name")
                 .build();
     }
@@ -30,7 +30,7 @@ public class CreateContainerRequestTest {
         Map<String, String> env = new HashMap<>();
         env.put("--param", "value");
 
-        CreateContainerRequest createContainerRequest = CreateContainerRequest.builder()
+        Container createContainerRequest = Container.builder()
                 .withName("name")
                 .fromImage("image")
                 .withAlias("aliasName")

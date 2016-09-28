@@ -7,7 +7,7 @@ import java.util.Map;
  */
 public interface DockerClientWrapper {
 
-    void createContainer(CreateContainerRequest containerConfig);
+    void createContainer(Container containerConfig);
 
     void startContainer(String containerName);
 

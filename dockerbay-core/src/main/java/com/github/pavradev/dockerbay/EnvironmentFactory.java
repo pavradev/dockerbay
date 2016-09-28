@@ -4,7 +4,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 
 /**
- * Factory to produce Environment
+ * Factory that produces Environments
  */
 public class EnvironmentFactory {
 
@@ -30,8 +30,9 @@ public class EnvironmentFactory {
     }
 
     public Environment getWithId(String id) {
-        Environment environment = new Environment(dockerClient, httpClient);
-        environment.setNetworkName(id);
+        Environment environment = Environment.withId(id);
+        environment.setDockerClient(dockerClient);
+        environment.setHttpClient(httpClient);
         return environment;
     }
 }

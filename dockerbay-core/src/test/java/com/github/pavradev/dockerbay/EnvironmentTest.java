@@ -38,8 +38,9 @@ public class EnvironmentTest {
         dockerClientWrapperMock = mock(DockerClientWrapper.class);
         httpClientMock = mock(Client.class);
 
-        environment = new Environment(dockerClientWrapperMock, httpClientMock);
-        environment.setNetworkName("net");
+        environment = Environment.withId("net");
+        environment.setDockerClient(dockerClientWrapperMock);
+        environment.setHttpClient(httpClientMock);
     }
 
     @Test

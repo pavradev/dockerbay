@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * Abstraction of the docker environment for component test.
  * Stateful.
  */
-public class Environment {
+class Environment {
     private static final Logger log = LoggerFactory.getLogger(Environment.class);
 
     private static final int BETWEEN_RETRY_MILLIS = 2000;
@@ -35,21 +35,29 @@ public class Environment {
     private DockerClientWrapper dockerClient;
     private Client httpClient;
 
-    Environment(DockerClientWrapper dockerClient, Client httpClient) {
-        this.httpClient = httpClient;
-        this.dockerClient = dockerClient;
-        this.status = Status.UNINITIALIZED;
-    }
-
     private String networkName;
-    private List<ContainerConfig> containers = new ArrayList<>();
 
+    private List<ContainerConfig> containers = new ArrayList<>();
     private Deque<String> startedContainers = new LinkedList<>();
+
     private Map<String, ContainerConfig> containerConfigMap = new HashMap<>();
     private Map<String, Integer> allocatedPortsPerContainer = new HashMap<>();
 
-    public void setNetworkName(String networkName) {
-        this.networkName = networkName;
+    private Environment(String id) {
+        this.networkName = id;
+        this.status = Status.UNINITIALIZED;
+    }
+
+    public static Environment withId(String id) {
+        return new Environment(id);
+    }
+
+    public void setDockerClient(DockerClientWrapper dockerClient) {
+        this.dockerClient = dockerClient;
+    }
+
+    public void setHttpClient(Client httpClient) {
+        this.httpClient = httpClient;
     }
 
     public void setContainers(List<ContainerConfig> containers) {
@@ -138,7 +146,7 @@ public class Environment {
     }
 
     private void createAndStartContainer(ContainerConfig container) {
-        final CreateContainerRequest createContainerRequest = getCreateContainerRequest(container);
+        final Container createContainerRequest = getCreateContainerRequest(container);
         this.startedContainers.push(createContainerRequest.getName());
         this.containerConfigMap.put(createContainerRequest.getName(), container);
         dockerClient.createContainer(createContainerRequest);
@@ -174,8 +182,8 @@ public class Environment {
         }
     }
 
-    private CreateContainerRequest getCreateContainerRequest(ContainerConfig container) {
-        CreateContainerRequest.CreateContainerRequestBuilder containerCreateRequestBuilder = CreateContainerRequest.builder();
+    private Container getCreateContainerRequest(ContainerConfig container) {
+        Container.CreateContainerRequestBuilder containerCreateRequestBuilder = Container.builder();
         containerCreateRequestBuilder.withName(buildUniqueContainerName(container.getName()));
         containerCreateRequestBuilder.withAlias(container.getName());
         containerCreateRequestBuilder.fromImage(container.getImage());
