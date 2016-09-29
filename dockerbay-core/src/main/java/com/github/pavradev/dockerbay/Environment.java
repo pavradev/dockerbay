@@ -49,6 +49,10 @@ public class Environment {
         return this.containers.stream().filter(c -> c.getAlias().equals(alias)).findAny();
     }
 
+    public Integer getAllocatedPortByAlias(String alias){
+        return findContainerByAlias(alias).map(Container::getLocalPort).orElse(null);
+    }
+
     public void initialize() {
         validateState(EnvironmentState.UNINITIALIZED);
         try {
@@ -87,7 +91,6 @@ public class Environment {
 
     private void stopAndRemoveContainerQuietly(Container container) {
         try {
-            log.info("Stopping container {}", container.getName());
             container.stop();
         } catch (Exception e) {
             log.error("Failed to stop container ", container.getName(), e);
@@ -101,7 +104,6 @@ public class Environment {
 
     private void deleteNetworkQuietly(Network network) {
         try {
-            log.info("Delete network {}", network.getName());
             network.delete();
         } catch (Exception e) {
             log.error("Failed to delete network " + network.getName(), e);

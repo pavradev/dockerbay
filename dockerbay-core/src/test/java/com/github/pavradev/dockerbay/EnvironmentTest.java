@@ -1,5 +1,8 @@
 package com.github.pavradev.dockerbay;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -12,6 +15,17 @@ import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 public class EnvironmentTest {
+
+    @Test
+    public void shouldAttachContainersToTheNetwork(){
+        Network networkMock = mock(Network.class);
+        Container containerMock = mock(Container.class);
+        Environment environment = Environment.withNetwork(networkMock);
+        environment.addContainer(containerMock);
+
+        assertThat(environment.getContainers().size(), is(1));
+        verify(containerMock).attachToNetwork(eq(networkMock));
+    }
 
     @Test
     public void shouldCreateNetwork() {

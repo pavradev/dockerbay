@@ -37,7 +37,7 @@ class Container {
         this.config = config;
     }
 
-    public static Container wihtConfig(ContainerConfig config) {
+    public static Container withConfig(ContainerConfig config) {
         return new Container(config);
     }
 
@@ -73,13 +73,20 @@ class Container {
         return this.localPort;
     }
 
+    public ContainerStatus getStatus(){
+        return this.status;
+    }
+
     public void create() {
+        log.info("Pulling image {}", getImage());
         dockerClient.pullImage(getImage());
+        log.info("Creating container {}", getName());
         dockerClient.createContainer(this);
     }
 
     public void start() {
         this.status = ContainerStatus.STARTED;
+        log.info("Starting container {}", getName());
         dockerClient.startContainer(this);
         if (this.config.getExposedPort() != null) {
             Map<Integer, Integer> portMappings = dockerClient.getPortMappings(this);
@@ -89,9 +96,12 @@ class Container {
     }
 
     public void stop() {
-        this.status = ContainerStatus.STOPPED;
+        log.info("Stopping container {}", getName());
         if (ContainerStatus.STARTED.equals(this.status)) {
             dockerClient.stopContainer(this);
+            this.status = ContainerStatus.STOPPED;
+        } else {
+            log.info("Container is already stopped. Ignoring.");
         }
     }
 
@@ -100,9 +110,9 @@ class Container {
             String logs = dockerClient.getContainerLogs(this);
             log.debug(logs);
         }
+        dockerClient.removeContainer(this);
         this.status = ContainerStatus.REMOVED;
         this.detachFromNetwork();
-        dockerClient.removeContainer(this);
     }
 
     public void attachToNetwork(Network network) {

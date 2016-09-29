@@ -7,7 +7,10 @@ import java.util.List;
 import javax.ws.rs.client.Client;
 
 /**
- * Creates instances of Environment
+ * Environment factory defines:
+ * 1. which DockerClientWrapper to use
+ * 2. with javax.ws.rs.client.Client to use
+ * 3. what containers to add into the Environment
  */
 public class EnvironmentFactory {
     private DockerClientWrapper dockerClient;
@@ -44,7 +47,7 @@ public class EnvironmentFactory {
         Environment environment = Environment.withNetwork(network);
 
         for (ContainerConfig containerConfig : this.containerConfigList) {
-            Container container = Container.wihtConfig(containerConfig);
+            Container container = Container.withConfig(containerConfig);
             container.setDockerClient(dockerClient);
             container.setHttpClient(httpClient);
             environment.addContainer(container);

@@ -3,10 +3,14 @@ package com.github.pavradev.dockerbay;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *
  */
-public class Network {
+class Network {
+    private static final Logger log = LoggerFactory.getLogger(Network.class);
 
     private DockerClientWrapper dockerClient;
 
@@ -30,6 +34,7 @@ public class Network {
     }
 
     public void create() {
+        log.info("Creating network {}", getName());
         dockerClient.createNetwork(this);
     }
 
@@ -37,6 +42,7 @@ public class Network {
         if (!this.containers.isEmpty()) {
             throw new IllegalStateException("Cannot delete network " + getName() + ". It has attached containers.");
         }
+        log.info("Delete network {}", getName());
         dockerClient.deleteNetwork(this);
     }
 
