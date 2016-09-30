@@ -34,12 +34,13 @@ public class DockerRule implements TestRule {
     public Statement apply(Statement statement, Description description) {
         String id = extractId(description);
         environment = environmentFactory.makeEnvironment(id);
+        environment.tryCleanupFromPreviousRun();
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 List<Throwable> errors = new ArrayList<>();
                 environment.initialize();
-                if (Environment.EnvironmentState.INITIALIZED.equals(environment.getState())) {
+                if (environment.isInitialized()) {
                     try {
                         statement.evaluate();
                     } catch (Throwable e) {
@@ -48,7 +49,7 @@ public class DockerRule implements TestRule {
                 } else {
                     errors.add(new EnvironmentException("Failed to init environment"));
                 }
-                environment.cleanup();
+                environment.tearDown();
                 MultipleFailureException.assertEmpty(errors);
             }
         };

@@ -15,9 +15,13 @@ public interface DockerClientWrapper {
 
     void removeContainer(Container container);
 
+    boolean isContainerExist(Container container);
+
     Map<Integer, Integer> getPortMappings(Container container);
 
     String getContainerLogs(Container container);
+
+    boolean isNetworkExists(Network network);
 
     void createNetwork(Network network);
 

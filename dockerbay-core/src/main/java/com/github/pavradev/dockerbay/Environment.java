@@ -1,12 +1,10 @@
 package com.github.pavradev.dockerbay;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,14 +15,10 @@ import org.slf4j.LoggerFactory;
 public class Environment {
     private static final Logger log = LoggerFactory.getLogger(Environment.class);
 
-    public enum EnvironmentState {UNINITIALIZED, INITIALIZED, PARTIALLY_INITIALIZED}
-
-    private EnvironmentState state;
     private Network network;
     private List<Container> containers = new ArrayList<>();
 
     private Environment(Network network) {
-        this.state = EnvironmentState.UNINITIALIZED;
         this.network = network;
     }
 
@@ -37,8 +31,8 @@ public class Environment {
         container.attachToNetwork(network);
     }
 
-    public EnvironmentState getState() {
-        return this.state;
+    public boolean isInitialized() {
+        return this.containers.stream().allMatch(Container::isRunning);
     }
 
     public List<Container> getContainers() {
@@ -53,38 +47,31 @@ public class Environment {
         return findContainerByAlias(alias).map(Container::getLocalPort).orElse(null);
     }
 
+    public void tryCleanupFromPreviousRun(){
+        if(network.isExist()){
+            log.info("Network {} already exist. Will try to cleanup", this.network.getName());
+            this.containers.forEach(c -> c.setStatus(Container.ContainerStatus.RUNNING));//assume that all containers running
+            tearDown();
+        }
+    }
+
     public void initialize() {
-        validateState(EnvironmentState.UNINITIALIZED);
         try {
             network.create();
             containers.forEach(Container::create);
             containers.forEach(Container::start);
-            setState(EnvironmentState.INITIALIZED);
         } catch (Exception e) {
             log.error("Failed to initialize environment", e);
-            setState(EnvironmentState.PARTIALLY_INITIALIZED);
         }
     }
 
-    private void setState(EnvironmentState state) {
-        this.state = state;
-    }
-
-    private void validateState(EnvironmentState... expectedStates) {
-        if (!Arrays.stream(expectedStates).anyMatch(this.state::equals)) {
-            throw new EnvironmentException(String.format("Invalid environment state. Expected %s but was %s", expectedStates, this.state));
-        }
-    }
-
-    public void cleanup() {
-        validateState(EnvironmentState.INITIALIZED, EnvironmentState.PARTIALLY_INITIALIZED);
+    public void tearDown() {
         stopAndRemoveContainersQuietly(this.containers);
         deleteNetworkQuietly(this.network);
-        setState(EnvironmentState.UNINITIALIZED);
     }
 
     private void stopAndRemoveContainersQuietly(List<Container> containers) {
-        List<Container> reversed = new ArrayList<>(this.containers);
+        List<Container> reversed = new ArrayList<>(containers);
         Collections.reverse(reversed);
         reversed.forEach(this::stopAndRemoveContainerQuietly);
     }

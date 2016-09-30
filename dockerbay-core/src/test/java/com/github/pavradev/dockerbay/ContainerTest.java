@@ -8,6 +8,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
@@ -15,6 +16,7 @@ import java.util.Arrays;
 import javax.ws.rs.client.Client;
 
 import org.hamcrest.CoreMatchers;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InOrder;
@@ -32,7 +34,7 @@ public class ContainerTest {
     private Client httpClientMock;
 
     @Before
-    public void beforeMethod(){
+    public void beforeMethod() {
         dockerClientMock = mock(DockerClientWrapper.class);
         httpClientMock = mock(Client.class);
 
@@ -43,7 +45,12 @@ public class ContainerTest {
         container = buildContainer(containerConfig);
     }
 
-    private Container buildContainer(ContainerConfig containerConfig){
+    @After
+    public void afterMethod() {
+        Mockito.verifyNoMoreInteractions(dockerClientMock);
+    }
+
+    private Container buildContainer(ContainerConfig containerConfig) {
         container = Container.withConfig(containerConfig);
         container.setDockerClient(dockerClientMock);
         container.setHttpClient(httpClientMock);
@@ -51,7 +58,7 @@ public class ContainerTest {
     }
 
     @Test
-    public void shouldAttachItselfToNetwork(){
+    public void shouldBeAddedToNetworkWhenAttached() {
         Network network = Network.withName("net");
         container.attachToNetwork(network);
 
@@ -60,7 +67,7 @@ public class ContainerTest {
     }
 
     @Test
-    public void shouldGetNameIncludingNetworkName(){
+    public void shouldGetNameIncludingNetworkName() {
         Network network = Network.withName("net");
         container.attachToNetwork(network);
 
@@ -68,22 +75,22 @@ public class ContainerTest {
     }
 
     @Test
-    public void shouldGetAliasAsNameWithoutNetwork(){
+    public void shouldGetAliasAsNameIfNoNetworkAttached() {
         assertThat(container.getName(), is("alias"));
     }
 
     @Test
-    public void shouldGetAlias(){
+    public void shouldGetAlias() {
         assertThat(container.getAlias(), is("alias"));
     }
 
     @Test
-    public void shouldGetImageName(){
+    public void shouldGetImageName() {
         assertThat(container.getImage(), is("image"));
     }
 
     @Test
-    public void shouldGetExposedPort(){
+    public void shouldGetExposedPort() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
@@ -94,7 +101,7 @@ public class ContainerTest {
     }
 
     @Test
-    public void shouldGetCmd(){
+    public void shouldGetCmd() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
@@ -105,7 +112,7 @@ public class ContainerTest {
     }
 
     @Test
-    public void shouldGetEnvVariables(){
+    public void shouldGetEnvVariables() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
@@ -115,8 +122,10 @@ public class ContainerTest {
         assertThat(container.getEnvVariables().get("user"), is("me"));
     }
 
+    //CREATE
+
     @Test
-    public void shouldPullImageBeforeCreate(){
+    public void shouldPullImageBeforeCreate() {
         container.create();
 
         InOrder inOrder = Mockito.inOrder(dockerClientMock);
@@ -125,57 +134,181 @@ public class ContainerTest {
     }
 
     @Test
-    public void shouldChangeStatusOnStart(){
+    public void shouldChangeContainerStatusToCreated() {
+        container.create();
+
+        assertThat(container.getStatus(), is(Container.ContainerStatus.CREATED_OR_STOPPED));
+        verify(dockerClientMock).pullImage(eq("image"));
+        verify(dockerClientMock).createContainer(eq(container));
+    }
+
+    @Test
+    public void shouldNotCreateCreatedContainer() {
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
+
+        container.create();
+        verify(dockerClientMock, never()).createContainer(eq(container));
+    }
+
+    //START
+
+    @Test
+    public void shouldChangeStatusOnStart() {
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
+
         container.start();
 
-        assertThat(container.getStatus(), is(Container.ContainerStatus.STARTED));
+        assertThat(container.getStatus(), is(Container.ContainerStatus.RUNNING));
         verify(dockerClientMock).startContainer(eq(container));
     }
 
     @Test
-    public void shouldMarkStartedEvenOnError(){
+    public void shouldMarkStartedEvenOnError() {
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
         doThrow(new RuntimeException("Fail!")).when(dockerClientMock).startContainer(anyObject());
 
         try {
             container.start();
             assertFalse("Should throw exception", true);
-        } catch (Exception e){}
+        } catch (Exception e) {
+        }
 
-        assertThat(container.getStatus(), is(Container.ContainerStatus.STARTED));
+        assertThat(container.getStatus(), is(Container.ContainerStatus.RUNNING));
+        verify(dockerClientMock).startContainer(eq(container));
     }
 
     @Test
-    public void shouldAssignLocalPortOnStart(){
+    public void shouldNotStartRunningContainer() {
+        container.setStatus(Container.ContainerStatus.RUNNING);
+
+        container.start();
+
+        verify(dockerClientMock, never()).startContainer(eq(container));
+    }
+
+    @Test
+    public void shouldNotStartNonCreatedContainer() {
+        container.setStatus(Container.ContainerStatus.NOT_CREATED);
+
+        container.start();
+
+        verify(dockerClientMock, never()).startContainer(eq(container));
+    }
+
+    @Test
+    public void shouldAssignLocalPortOnStart() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
                 .withExposedTcpPort(9999)
                 .build();
         container = buildContainer(containerConfig);
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
         doReturn(ImmutableMap.of(9999, 4444)).when(dockerClientMock).getPortMappings(container);
 
         container.start();
 
         assertThat(container.getLocalPort(), is(4444));
+        verify(dockerClientMock).startContainer(eq(container));
+        verify(dockerClientMock).getPortMappings(eq(container));
     }
 
     @Test
-    public void shouldWaitForLogEntryOnStart(){
+    public void shouldWaitForLogEntryOnStart() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
                 .waitForLogEntry("started")
                 .build();
         container = buildContainer(containerConfig);
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
         doReturn("Container is started!").when(dockerClientMock).getContainerLogs(anyObject());
 
         container.start();
 
-        assertThat(container.getStatus(), is(Container.ContainerStatus.STARTED));
+        assertThat(container.getStatus(), is(Container.ContainerStatus.RUNNING));
+        verify(dockerClientMock).getContainerLogs(eq(container));
+        verify(dockerClientMock).startContainer(eq(container));
+    }
+
+    //TODO: implement
+    public void shouldWaitForUrlOnStart() {
+
+    }
+
+    //STOP
+
+    @Test
+    public void shouldChangeStatusOnStop() {
+        container.setStatus(Container.ContainerStatus.RUNNING);
+
+        container.stop();
+
+        assertThat(container.getStatus(), is(Container.ContainerStatus.CREATED_OR_STOPPED));
+        verify(dockerClientMock).stopContainer(eq(container));
+    }
+
+    @Test
+    public void shouldNotStopNotRunningContainer() {
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
+
+        container.stop();
+
+        verify(dockerClientMock, never()).stopContainer(eq(container));
+    }
+
+    @Test
+    public void shouldNotStopNonExistingContainer() {
+        container.setStatus(Container.ContainerStatus.NOT_CREATED);
+
+        container.stop();
+
+        verify(dockerClientMock, never()).stopContainer(eq(container));
+    }
+
+    //REMOVE
+
+    @Test
+    public void shouldChangeStatusOnRemove() {
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
+
+        container.remove();
+
+        assertThat(container.getStatus(), is(Container.ContainerStatus.NOT_CREATED));
+        verify(dockerClientMock).removeContainer(eq(container));
+    }
+
+    @Test
+    public void shouldDisplayLogsBeforeRemoving() {
+        ContainerConfig containerConfig = ContainerConfig.builder()
+                .withAlias("alias")
+                .withImage("image")
+                .displayLogs(true)
+                .build();
+        container = buildContainer(containerConfig);
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
+
+        container.remove();
+
+        verify(dockerClientMock).removeContainer(eq(container));
         verify(dockerClientMock).getContainerLogs(eq(container));
     }
 
-    public void shouldWaitForUrlOnStart(){
+    @Test
+    public void shouldNotRemoveRunningContainer() {
+        container.setStatus(Container.ContainerStatus.RUNNING);
 
+        container.remove();
+
+        verify(dockerClientMock, never()).removeContainer(eq(container));
+    }
+
+    @Test
+    public void shouldNotRemoveNonExistingContainer() {
+        container.setStatus(Container.ContainerStatus.NOT_CREATED);
+
+        container.remove();
+
+        verify(dockerClientMock, never()).removeContainer(eq(container));
     }
 }

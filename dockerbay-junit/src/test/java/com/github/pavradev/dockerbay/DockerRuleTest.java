@@ -38,7 +38,7 @@ public class DockerRuleTest {
 
     @Test
     public void shouldInitializeEnvBeforeTest() throws Throwable {
-        doReturn(Environment.EnvironmentState.INITIALIZED).when(env).getState();
+        doReturn(true).when(env).isInitialized();
         Statement statement = dockerRule.apply(baseStatement, description);
         statement.evaluate();
 
@@ -49,18 +49,18 @@ public class DockerRuleTest {
 
     @Test
     public void shouldCleanupEnvAfterTest() throws Throwable {
-        doReturn(Environment.EnvironmentState.INITIALIZED).when(env).getState();
+        doReturn(true).when(env).isInitialized();
         Statement statement = dockerRule.apply(baseStatement, description);
         statement.evaluate();
 
         InOrder inOrder = inOrder(env, baseStatement);
         inOrder.verify(baseStatement).evaluate();
-        inOrder.verify(env).cleanup();
+        inOrder.verify(env).tearDown();
     }
 
     @Test
     public void shouldSkipTestIfEnvFailedToInitialize() throws Throwable {
-        doReturn(Environment.EnvironmentState.PARTIALLY_INITIALIZED).when(env).getState();
+        doReturn(false).when(env).isInitialized();
         Statement statement = dockerRule.apply(baseStatement, description);
 
         try {
@@ -70,6 +70,6 @@ public class DockerRuleTest {
         }
 
         verify(baseStatement, never()).evaluate();
-        verify(env).cleanup();
+        verify(env).tearDown();
     }
 }

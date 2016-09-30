@@ -39,11 +39,15 @@ class Network {
     }
 
     public void delete() {
-        if (!this.containers.isEmpty()) {
-            throw new IllegalStateException("Cannot delete network " + getName() + ". It has attached containers.");
-        }
+//        if (!this.containers.isEmpty()) {
+//            throw new IllegalStateException("Cannot delete network " + getName() + ". It has attached containers.");
+//        }
         log.info("Delete network {}", getName());
         dockerClient.deleteNetwork(this);
+    }
+
+    public boolean isExist() {
+        return dockerClient.isNetworkExists(this);
     }
 
     public void addContainer(Container container) {

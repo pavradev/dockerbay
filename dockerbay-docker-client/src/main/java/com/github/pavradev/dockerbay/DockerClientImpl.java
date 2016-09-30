@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
@@ -107,6 +108,11 @@ public class DockerClientImpl implements DockerClientWrapper {
     }
 
     @Override
+    public boolean isContainerExist(Container container) {
+        return false;
+    }
+
+    @Override
     public Map<Integer, Integer> getPortMappings(Container container) {
         try {
             InspectContainerResponse containerInfo = dockerClient.inspectContainerCmd(container.getName()).exec();
@@ -152,6 +158,20 @@ public class DockerClientImpl implements DockerClientWrapper {
 
         } catch (Exception e) {
             throw new DockerClientWrapperException("Failed to read container logs from " + container.getName(), e);
+        }
+    }
+
+    @Override
+    public boolean isNetworkExists(Network network) {
+        try {
+            dockerClient.inspectNetworkCmd()
+                    .withNetworkId(network.getName())
+                    .exec();
+            return true;
+        } catch (NotFoundException e){
+            return false;
+        } catch (Exception e) {
+            throw new DockerClientWrapperException("Failed to create network " + network.getName(), e);
         }
     }
 

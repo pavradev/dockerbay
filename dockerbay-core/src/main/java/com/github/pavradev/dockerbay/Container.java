@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * Container implementation
  */
 class Container {
-    public enum ContainerStatus {UNKNOWN, STARTED, STOPPED, REMOVED}
+    public enum ContainerStatus {NOT_CREATED, CREATED_OR_STOPPED, RUNNING}
 
     private static final Logger log = LoggerFactory.getLogger(Container.class);
 
@@ -27,7 +27,7 @@ class Container {
     private Client httpClient;
     private DockerClientWrapper dockerClient;
 
-    private ContainerStatus status = ContainerStatus.UNKNOWN;
+    private ContainerStatus status = ContainerStatus.NOT_CREATED;
     private ContainerConfig config;
     private Network network;
 
@@ -73,46 +73,90 @@ class Container {
         return this.localPort;
     }
 
-    public ContainerStatus getStatus(){
+    public ContainerStatus getStatus() {
         return this.status;
     }
 
+    public void setStatus(ContainerStatus status){
+        this.status = status;
+    }
+
     public void create() {
-        log.info("Pulling image {}", getImage());
-        dockerClient.pullImage(getImage());
-        log.info("Creating container {}", getName());
-        dockerClient.createContainer(this);
+        switch (getStatus()){
+            case NOT_CREATED:
+                log.info("Pulling image {}", getImage());
+                dockerClient.pullImage(getImage());
+                log.info("Creating container {}", getName());
+                setStatus(ContainerStatus.CREATED_OR_STOPPED);
+                dockerClient.createContainer(this);
+                break;
+            case CREATED_OR_STOPPED:
+            case RUNNING:
+                log.info("Container {} already running", getName());
+                break;
+        }
     }
 
     public void start() {
-        this.status = ContainerStatus.STARTED;
-        log.info("Starting container {}", getName());
-        dockerClient.startContainer(this);
+        switch (getStatus()){
+            case CREATED_OR_STOPPED:
+                setStatus(ContainerStatus.RUNNING);
+                log.info("Starting container {}", getName());
+                dockerClient.startContainer(this);
+                assignLocalPortIfNeeded();
+                waitUntilReady();
+                break;
+            case NOT_CREATED:
+                log.warn("No container {} found to start!", getName());
+                break;
+            case RUNNING:
+                log.info("Container {} is already running", getName());
+                break;
+        }
+    }
+
+    private void assignLocalPortIfNeeded() {
         if (this.config.getExposedPort() != null) {
             Map<Integer, Integer> portMappings = dockerClient.getPortMappings(this);
             this.localPort = portMappings.get(this.config.getExposedPort());
         }
-        waitUntilReady();
     }
 
     public void stop() {
-        log.info("Stopping container {}", getName());
-        if (ContainerStatus.STARTED.equals(this.status)) {
-            dockerClient.stopContainer(this);
-            this.status = ContainerStatus.STOPPED;
-        } else {
-            log.info("Container is already stopped. Ignoring.");
+        switch (getStatus()){
+            case RUNNING:
+                log.info("Stopping container {}", getName());
+                dockerClient.stopContainer(this);
+                setStatus(ContainerStatus.CREATED_OR_STOPPED);
+                break;
+            case CREATED_OR_STOPPED:
+            case NOT_CREATED:
+                log.info("Container {} is already stopped or removed. Ignoring.", getName());
         }
     }
 
     public void remove() {
+        switch (getStatus()){
+            case CREATED_OR_STOPPED:
+                displayLogsIfNeeded();
+                log.info("Removing container {}", getName());
+                dockerClient.removeContainer(this);
+                setStatus(ContainerStatus.NOT_CREATED);
+                break;
+            case NOT_CREATED:
+                log.info("Container {} is already stopped", getName());
+                break;
+            case RUNNING:
+                log.warn("Container {} is running. Stop first", getName());
+                break;
+        }
+    }
+
+    private void displayLogsIfNeeded() {
         if (this.config.getDisplayLogs()) {
             String logs = dockerClient.getContainerLogs(this);
             log.debug(logs);
         }
-        dockerClient.removeContainer(this);
-        this.status = ContainerStatus.REMOVED;
-        this.detachFromNetwork();
     }
 
     public void attachToNetwork(Network network) {
@@ -120,15 +164,14 @@ class Container {
         network.addContainer(this);
     }
 
-    public void detachFromNetwork() {
-        network.removeContainer(this);
-        this.network = null;
-    }
+//    public void detachFromNetwork() {
+//        network.removeContainer(this);
+//        this.network = null;
+//    }
 
     public Integer getExposedPort() {
         return this.config.getExposedPort();
     }
-
 
     public Map<String, String> getEnvVariables() {
         return this.config.getEnvVariables();
@@ -136,6 +179,10 @@ class Container {
 
     public List<String> getCmd() {
         return this.config.getCmd();
+    }
+
+    public boolean isRunning(){
+        return ContainerStatus.RUNNING.equals(this.status);
     }
 
     private void waitUntilReady() {

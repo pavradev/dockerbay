@@ -8,8 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
-
 import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
@@ -26,6 +24,8 @@ public class EnvironmentTest {
         assertThat(environment.getContainers().size(), is(1));
         verify(containerMock).attachToNetwork(eq(networkMock));
     }
+
+    //INITIALIZE
 
     @Test
     public void shouldCreateNetwork() {
@@ -72,30 +72,14 @@ public class EnvironmentTest {
         verify(containerMock2, never()).start();
     }
 
-    @Test(expected = EnvironmentException.class)
-    public void shouldNotAllowCallingInitializeTwice() {
-        Network networkMock = mock(Network.class);
-        Environment environment = Environment.withNetwork(networkMock);
-
-        environment.initialize();
-        environment.initialize();
-    }
-
-    @Test(expected = EnvironmentException.class)
-    public void shouldNotAllowCallingCleanupIfNotInitialized() {
-        Network networkMock = mock(Network.class);
-        Environment environment = Environment.withNetwork(networkMock);
-
-        environment.cleanup();
-    }
+    //TEARDOWN
 
     @Test
     public void shouldDeleteNetwork() {
         Network networkMock = mock(Network.class);
         Environment environment = Environment.withNetwork(networkMock);
 
-        environment.initialize();
-        environment.cleanup();
+        environment.tearDown();
 
         verify(networkMock).delete();
     }
@@ -107,8 +91,7 @@ public class EnvironmentTest {
         Environment environment = Environment.withNetwork(networkMock);
         environment.addContainer(containerMock);
 
-        environment.initialize();
-        environment.cleanup();
+        environment.tearDown();
 
         InOrder inOrder = Mockito.inOrder(networkMock, containerMock);
         inOrder.verify(containerMock).stop();
@@ -125,8 +108,7 @@ public class EnvironmentTest {
         environment.addContainer(containerMock1);
         environment.addContainer(containerMock2);
 
-        environment.initialize();
-        environment.cleanup();
+        environment.tearDown();
 
         InOrder inOrder = Mockito.inOrder(containerMock1, containerMock2);
         inOrder.verify(containerMock2).stop();
@@ -143,8 +125,7 @@ public class EnvironmentTest {
         environment.addContainer(containerMock1);
         environment.addContainer(containerMock2);
 
-        environment.initialize();
-        environment.cleanup();
+        environment.tearDown();
 
         verify(containerMock1).stop();
         verify(containerMock2).stop();
