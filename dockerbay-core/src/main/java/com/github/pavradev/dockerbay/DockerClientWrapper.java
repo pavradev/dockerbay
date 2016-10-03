@@ -28,4 +28,8 @@ public interface DockerClientWrapper {
     void deleteNetwork(Network network);
 
     void pullImage(String imageName);
+
+    void createVolume(Volume volume);
+
+    void deleteVolume(Volume volume);
 }

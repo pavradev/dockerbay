@@ -15,14 +15,12 @@ import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Set;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -91,34 +89,12 @@ public class ContainerTest {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
-                .addBind(Bind.getPrivate("/from/private", "/to/private"))
-                .addBind(Bind.getShared("/from/shared", "/to/shared"))
                 .build();
         container = buildContainer(containerConfig);
-        Network network = Network.withName("net");
-        container.attachToNetwork(network);
+        container.addBind(Bind.create("/from/path", "/to/path"));
 
-        Map<String, String> containerBinds = container.getContainerBinds();
-        assertThat(containerBinds.get("/from/private_net"), is("/to/private"));
-        assertThat(containerBinds.get("/from/shared"), is("/to/shared"));
-    }
-
-    @Test
-    public void shouldGetContainerVolumes(){
-        ContainerConfig containerConfig = ContainerConfig.builder()
-                .withAlias("alias")
-                .withImage("image")
-                .addBind(Bind.getPrivate("/from/private", "/to/private"))
-                .addBind(Bind.getPrivate("private_volume", "/to/private/volume"))
-                .addBind(Bind.getShared("shared_volume", "/to/shared/volume"))
-                .build();
-        container = buildContainer(containerConfig);
-        Network network = Network.withName("net");
-        container.attachToNetwork(network);
-
-        Set<String> volumes = container.getVolumes();
-        assertThat(volumes.size(), is(2));
-        assertThat(volumes, hasItems("private_volume_net", "shared_volume"));
+        Map<String, String> containerBinds = container.getBinds();
+        assertThat(containerBinds.get("/from/path"), is("/to/path"));
     }
 
     @Test

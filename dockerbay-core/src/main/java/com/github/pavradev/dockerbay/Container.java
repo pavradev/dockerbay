@@ -17,10 +17,8 @@ import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jersey.repackaged.com.google.common.collect.ImmutableMap;
-
 /**
- * Container implementation
+ * Docker Container abstraction
  */
 class Container {
     public enum ContainerStatus {NOT_CREATED, CREATED_OR_STOPPED, RUNNING}
@@ -38,6 +36,7 @@ class Container {
 
     private Integer localPort;
     private Integer localDebugPort;
+    private Map<String, String> binds = new HashMap<>();
 
     private Container(ContainerConfig config) {
         this.config = config;
@@ -63,23 +62,12 @@ class Container {
         }
     }
 
-    public Map<String, String> getContainerBinds(){
-        Map<String, String> binds = new HashMap<>();
-        for(Bind bind : this.config.getBinds()){
-            binds.put(getFrom(bind), bind.getTo());
-        }
+    public void addBind(Bind bind) {
+        binds.put(bind.getFrom(), bind.getTo());
+    }
+
+    public Map<String, String> getBinds() {
         return binds;
-    }
-
-    private String getFrom(Bind b){
-        return b.isShared() ? b.getFrom() : b.getFrom() + "_" + getNetwork().getName();
-    }
-
-    public Set<String> getVolumes(){
-        return this.config.getBinds().stream()
-                .filter(Bind::isVolume)
-                .map(this::getFrom)
-                .collect(Collectors.toSet());
     }
 
     public String getImage() {
@@ -98,7 +86,7 @@ class Container {
         return this.localPort;
     }
 
-    public Integer getLocalDebugPort(){
+    public Integer getLocalDebugPort() {
         return this.localDebugPort;
     }
 
@@ -106,12 +94,12 @@ class Container {
         return this.status;
     }
 
-    public void setStatus(ContainerStatus status){
+    public void setStatus(ContainerStatus status) {
         this.status = status;
     }
 
     public void create() {
-        switch (getStatus()){
+        switch (getStatus()) {
             case NOT_CREATED:
                 log.info("Pulling image {}", getImage());
                 dockerClient.pullImage(getImage());
@@ -121,13 +109,13 @@ class Container {
                 break;
             case CREATED_OR_STOPPED:
             case RUNNING:
-                log.info("Container {} already running", getName());
+                log.info("Container {} already created or running", getName());
                 break;
         }
     }
 
     public void start() {
-        switch (getStatus()){
+        switch (getStatus()) {
             case CREATED_OR_STOPPED:
                 setStatus(ContainerStatus.RUNNING);
                 log.info("Starting container {}", getName());
@@ -149,17 +137,17 @@ class Container {
             Map<Integer, Integer> portMappings = dockerClient.getPortMappings(this);
             this.localPort = portMappings.get(this.config.getExposedPort());
             this.localDebugPort = portMappings.get(this.config.getDebugPort());
-            if(this.localPort != null){
+            if (this.localPort != null) {
                 log.info("Container {} port is {}", getName(), getLocalPort());
             }
-            if(this.localDebugPort != null){
+            if (this.localDebugPort != null) {
                 log.info("Container {} debug port is {}", getName(), getLocalDebugPort());
             }
         }
     }
 
     public void stop() {
-        switch (getStatus()){
+        switch (getStatus()) {
             case RUNNING:
                 log.info("Stopping container {}", getName());
                 dockerClient.stopContainer(this);
@@ -172,7 +160,7 @@ class Container {
     }
 
     public void remove() {
-        switch (getStatus()){
+        switch (getStatus()) {
             case CREATED_OR_STOPPED:
                 displayLogsIfNeeded();
                 log.info("Removing container {}", getName());
@@ -217,16 +205,16 @@ class Container {
         return this.config.getCmd();
     }
 
-    public boolean isRunning(){
+    public boolean isRunning() {
         return ContainerStatus.RUNNING.equals(this.status);
     }
 
     private void waitUntilReady() {
-        waitForLogEntry();
-        waitForUrl();
+        waitForLogEntryIfNeeded();
+        waitForUrlIfNeeded();
     }
 
-    private void waitForUrl() {
+    private void waitForUrlIfNeeded() {
         if (this.config.getWaitForUrl() != null) {
             if (this.localPort == null) {
                 throw new EnvironmentException("No allocated port for container" + getName());
@@ -239,7 +227,7 @@ class Container {
         }
     }
 
-    private void waitForLogEntry() {
+    private void waitForLogEntryIfNeeded() {
         if (this.config.getWaitForLogEntry() != null) {
             withTimeout(() -> {
                 String containerLogs = dockerClient.getContainerLogs(this);

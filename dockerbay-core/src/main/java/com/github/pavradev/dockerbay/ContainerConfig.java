@@ -19,6 +19,7 @@ public class ContainerConfig {
     private Integer debugPort;
     private Map<String, String> envVariables = new HashMap<>();
     private List<Bind> binds = new ArrayList<>();
+    private List<Bind> sharedBinds = new ArrayList<>();
 
     private Boolean displayLogs = false;
     private String waitForLogEntry;
@@ -54,6 +55,10 @@ public class ContainerConfig {
 
     public List<Bind> getBinds(){
         return binds;
+    }
+
+    public List<Bind> getSharedBinds() {
+        return sharedBinds;
     }
 
     public Boolean getDisplayLogs() {
@@ -115,6 +120,11 @@ public class ContainerConfig {
 
         public ContainerConfigBuilder addBind(Bind bind){
             container.binds.add(bind);
+            return this;
+        }
+
+        public ContainerConfigBuilder addSharedBind(Bind bind){
+            container.sharedBinds.add(bind);
             return this;
         }
 

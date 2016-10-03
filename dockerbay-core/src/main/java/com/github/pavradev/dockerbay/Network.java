@@ -2,12 +2,13 @@ package com.github.pavradev.dockerbay;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
+ * Docker network abstraction
  */
 class Network {
     private static final Logger log = LoggerFactory.getLogger(Network.class);
@@ -60,5 +61,21 @@ class Network {
 
     public List<Container> getContainers() {
         return this.containers;
+    }
+
+    @Override
+    public String toString() {
+        return getName();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(this == obj){
+            return true;
+        }
+        if(!(obj instanceof Network)){
+            return false;
+        }
+        return Objects.equals(((Network)obj).getName(), this.getName());
     }
 }

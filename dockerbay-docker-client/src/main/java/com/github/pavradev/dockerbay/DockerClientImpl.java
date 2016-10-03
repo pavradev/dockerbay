@@ -171,7 +171,7 @@ public class DockerClientImpl implements DockerClientWrapper {
         } catch (NotFoundException e){
             return false;
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to create network " + network.getName(), e);
+            throw new DockerClientWrapperException("Failed to create network " + network, e);
         }
     }
 
@@ -184,7 +184,7 @@ public class DockerClientImpl implements DockerClientWrapper {
                     .withCheckDuplicate(true)
                     .exec();
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to create network " + network.getName(), e);
+            throw new DockerClientWrapperException("Failed to create network " + network, e);
         }
     }
 
@@ -193,7 +193,7 @@ public class DockerClientImpl implements DockerClientWrapper {
         try {
             dockerClient.removeNetworkCmd(network.getName()).exec();
         } catch (Exception e) {
-            throw new DockerClientWrapperException("Failed to delete network " + network.getName(), e);
+            throw new DockerClientWrapperException("Failed to delete network " + network, e);
         }
     }
 
@@ -205,6 +205,26 @@ public class DockerClientImpl implements DockerClientWrapper {
             dockerClient.pullImageCmd(imageName).exec(pullCallback).awaitCompletion();
         } catch (Exception e) {
             throw new DockerClientWrapperException("Failed to pull image " + imageName, e);
+        }
+    }
+
+    @Override
+    public void createVolume(Volume volume) {
+        try {
+            dockerClient.createVolumeCmd()
+                    .withName(volume.getName())
+                    .exec();
+        } catch (Exception e) {
+            throw new DockerClientWrapperException("Failed to create volume " + volume, e);
+        }
+    }
+
+    @Override
+    public void deleteVolume(Volume volume) {
+        try {
+            dockerClient.removeVolumeCmd(volume.getName()).exec();
+        } catch (Exception e) {
+            throw new DockerClientWrapperException("Failed to delete volume " + volume, e);
         }
     }
 }

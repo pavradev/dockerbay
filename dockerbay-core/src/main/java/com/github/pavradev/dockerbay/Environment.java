@@ -2,8 +2,10 @@ package com.github.pavradev.dockerbay;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 
 import org.slf4j.Logger;
@@ -18,6 +20,7 @@ public class Environment {
 
     private Network network;
     private List<Container> containers = new ArrayList<>();
+    private Set<Volume> volumes = new HashSet<>();
 
     private Environment(Network network) {
         this.network = network;
@@ -32,12 +35,24 @@ public class Environment {
         container.attachToNetwork(network);
     }
 
+    public void addVolume(Volume volume){
+        this.volumes.add(volume);
+    }
+
     public boolean isInitialized() {
         return this.containers.stream().allMatch(Container::isRunning);
     }
 
+    public Network getNetwork(){
+        return this.network;
+    }
+
     public List<Container> getContainers() {
         return this.containers;
+    }
+
+    public Set<Volume> getVolumes(){
+        return this.volumes;
     }
 
     public Optional<Container> findContainerByAlias(String alias){
@@ -59,6 +74,7 @@ public class Environment {
     public void initialize() {
         try {
             network.create();
+            volumes.forEach(Volume::create);
             containers.forEach(Container::create);
             containers.forEach(Container::start);
         } catch (Exception e) {
@@ -69,6 +85,7 @@ public class Environment {
     public void tearDown() {
         stopAndRemoveContainersQuietly(this.containers);
         deleteNetworkQuietly(this.network);
+        volumes.forEach(this::deleteVolumeQuietly);
     }
 
     private void stopAndRemoveContainersQuietly(List<Container> containers) {
@@ -94,7 +111,15 @@ public class Environment {
         try {
             network.delete();
         } catch (Exception e) {
-            log.error("Failed to delete network " + network.getName(), e);
+            log.error("Failed to delete network " + network, e);
+        }
+    }
+
+    private void deleteVolumeQuietly(Volume volume) {
+        try {
+            volume.delete();
+        } catch (Exception e) {
+            log.error("Failed to delete volume " + volume, e);
         }
     }
 }
