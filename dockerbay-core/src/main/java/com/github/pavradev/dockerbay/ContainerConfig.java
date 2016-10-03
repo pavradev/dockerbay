@@ -15,6 +15,7 @@ public class ContainerConfig {
 
     private List<String> cmd;
     private Integer exposedPort;
+    private Integer debugPort;
     private Map<String, String> envVariables = new HashMap<>();
 
     private Boolean displayLogs = false;
@@ -39,6 +40,10 @@ public class ContainerConfig {
 
     public Integer getExposedPort() {
         return exposedPort;
+    }
+
+    public Integer getDebugPort() {
+        return debugPort;
     }
 
     public Map<String, String> getEnvVariables() {
@@ -89,6 +94,11 @@ public class ContainerConfig {
 
         public ContainerConfigBuilder withExposedTcpPort(Integer port) {
             container.exposedPort = port;
+            return this;
+        }
+
+        public ContainerConfigBuilder withDebugPort(Integer port) {
+            container.debugPort = port;
             return this;
         }
 

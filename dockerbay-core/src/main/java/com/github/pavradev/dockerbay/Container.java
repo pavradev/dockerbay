@@ -32,6 +32,7 @@ class Container {
     private Network network;
 
     private Integer localPort;
+    private Integer localDebugPort;
 
     private Container(ContainerConfig config) {
         this.config = config;
@@ -73,6 +74,10 @@ class Container {
         return this.localPort;
     }
 
+    public Integer getLocalDebugPort(){
+        return this.localDebugPort;
+    }
+
     public ContainerStatus getStatus() {
         return this.status;
     }
@@ -103,7 +108,7 @@ class Container {
                 setStatus(ContainerStatus.RUNNING);
                 log.info("Starting container {}", getName());
                 dockerClient.startContainer(this);
-                assignLocalPortIfNeeded();
+                assignLocalPortsIfNeeded();
                 waitUntilReady();
                 break;
             case NOT_CREATED:
@@ -115,10 +120,17 @@ class Container {
         }
     }
 
-    private void assignLocalPortIfNeeded() {
-        if (this.config.getExposedPort() != null) {
+    private void assignLocalPortsIfNeeded() {
+        if (this.config.getExposedPort() != null || this.config.getDebugPort() != null) {
             Map<Integer, Integer> portMappings = dockerClient.getPortMappings(this);
             this.localPort = portMappings.get(this.config.getExposedPort());
+            this.localDebugPort = portMappings.get(this.config.getDebugPort());
+            if(this.localPort != null){
+                log.info("Container {} port is {}", getName(), getLocalPort());
+            }
+            if(this.localDebugPort != null){
+                log.info("Container {} debug port is {}", getName(), getLocalDebugPort());
+            }
         }
     }
 

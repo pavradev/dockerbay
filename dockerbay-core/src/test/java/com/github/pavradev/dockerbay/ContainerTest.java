@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -12,8 +13,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.client.Client;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
@@ -214,6 +220,24 @@ public class ContainerTest {
     }
 
     @Test
+    public void shouldAssignLocalDebugPortOnStart() {
+        ContainerConfig containerConfig = ContainerConfig.builder()
+                .withAlias("alias")
+                .withImage("image")
+                .withDebugPort(7777)
+                .build();
+        container = buildContainer(containerConfig);
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
+        doReturn(ImmutableMap.of(7777, 1234)).when(dockerClientMock).getPortMappings(container);
+
+        container.start();
+
+        assertThat(container.getLocalDebugPort(), is(1234));
+        verify(dockerClientMock).startContainer(eq(container));
+        verify(dockerClientMock).getPortMappings(eq(container));
+    }
+
+    @Test
     public void shouldWaitForLogEntryOnStart() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
@@ -231,9 +255,38 @@ public class ContainerTest {
         verify(dockerClientMock).startContainer(eq(container));
     }
 
-    //TODO: implement
+    @Test
     public void shouldWaitForUrlOnStart() {
 
+        Response response = mock(Response.class);
+        doReturn(200).when(response).getStatus();
+        mockHttpResponse(response);
+
+        ContainerConfig containerConfig = ContainerConfig.builder()
+                .withAlias("alias")
+                .withImage("image")
+                .withExposedTcpPort(1111)
+                .waitForUrl("/some/path")
+                .build();
+        container = buildContainer(containerConfig);
+        container.setStatus(Container.ContainerStatus.CREATED_OR_STOPPED);
+        doReturn(ImmutableMap.of(1111, 2222)).when(dockerClientMock).getPortMappings(eq(container));
+
+        container.start();
+
+        verify(dockerClientMock).startContainer(eq(container));
+        verify(dockerClientMock).getPortMappings(eq(container));
+        verify(httpClientMock).target("http://localhost:2222");
+    }
+
+    private WebTarget mockHttpResponse(Response responseMock) {
+        WebTarget webTargetMock = mock(WebTarget.class);
+        doReturn(webTargetMock).when(httpClientMock).target(anyString());
+        doReturn(webTargetMock).when(webTargetMock).path(anyString());
+        Invocation.Builder builderMock = mock(Invocation.Builder.class);
+        doReturn(builderMock).when(webTargetMock).request();
+        doReturn(responseMock).when(builderMock).get();
+        return webTargetMock;
     }
 
     //STOP

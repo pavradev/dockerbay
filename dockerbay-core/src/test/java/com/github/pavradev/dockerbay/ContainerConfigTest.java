@@ -40,6 +40,7 @@ public class ContainerConfigTest {
                 .withCmd(Arrays.asList("cmd"))
                 .addToEnv("--param", "value")
                 .withExposedTcpPort(1111)
+                .withDebugPort(2222)
                 .waitForLogEntry("success")
                 .displayLogs(true)
                 .waitForUrl("/url")
@@ -51,6 +52,7 @@ public class ContainerConfigTest {
         assertThat(containerConfig.getCmd().get(0), equalTo("cmd"));
         assertThat(containerConfig.getEnvVariables().get("--param"), equalTo("value"));
         assertThat(containerConfig.getExposedPort(), equalTo(1111));
+        assertThat(containerConfig.getDebugPort(), equalTo(2222));
         assertThat(containerConfig.getWaitForLogEntry(), equalTo("success"));
         assertThat(containerConfig.getDisplayLogs(), equalTo(true));
         assertThat(containerConfig.getWaitForUrl(), equalTo("/url"));
