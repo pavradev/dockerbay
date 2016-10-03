@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Abstraction of the unique environment for component test. Stateful.
+ * Orchestrates underlying components: network, containers, volumes
  */
 public class Environment {
     private static final Logger log = LoggerFactory.getLogger(Environment.class);

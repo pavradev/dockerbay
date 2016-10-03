@@ -1,5 +1,6 @@
 package com.github.pavradev.dockerbay;
 
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -13,8 +14,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Invocation;
@@ -86,6 +87,41 @@ public class ContainerTest {
     }
 
     @Test
+    public void shouldGetContainerBinds(){
+        ContainerConfig containerConfig = ContainerConfig.builder()
+                .withAlias("alias")
+                .withImage("image")
+                .addBind(Bind.getPrivate("/from/private", "/to/private"))
+                .addBind(Bind.getShared("/from/shared", "/to/shared"))
+                .build();
+        container = buildContainer(containerConfig);
+        Network network = Network.withName("net");
+        container.attachToNetwork(network);
+
+        Map<String, String> containerBinds = container.getContainerBinds();
+        assertThat(containerBinds.get("/from/private_net"), is("/to/private"));
+        assertThat(containerBinds.get("/from/shared"), is("/to/shared"));
+    }
+
+    @Test
+    public void shouldGetContainerVolumes(){
+        ContainerConfig containerConfig = ContainerConfig.builder()
+                .withAlias("alias")
+                .withImage("image")
+                .addBind(Bind.getPrivate("/from/private", "/to/private"))
+                .addBind(Bind.getPrivate("private_volume", "/to/private/volume"))
+                .addBind(Bind.getShared("shared_volume", "/to/shared/volume"))
+                .build();
+        container = buildContainer(containerConfig);
+        Network network = Network.withName("net");
+        container.attachToNetwork(network);
+
+        Set<String> volumes = container.getVolumes();
+        assertThat(volumes.size(), is(2));
+        assertThat(volumes, hasItems("private_volume_net", "shared_volume"));
+    }
+
+    @Test
     public void shouldGetAlias() {
         assertThat(container.getAlias(), is("alias"));
     }
@@ -114,7 +150,7 @@ public class ContainerTest {
                 .withCmd(Arrays.asList("-p", "-q"))
                 .build();
         container = buildContainer(containerConfig);
-        assertThat(container.getCmd(), CoreMatchers.hasItems("-p", "-q"));
+        assertThat(container.getCmd(), hasItems("-p", "-q"));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.github.pavradev.dockerbay;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ public class ContainerConfig {
     private Integer exposedPort;
     private Integer debugPort;
     private Map<String, String> envVariables = new HashMap<>();
+    private List<Bind> binds = new ArrayList<>();
 
     private Boolean displayLogs = false;
     private String waitForLogEntry;
@@ -48,6 +50,10 @@ public class ContainerConfig {
 
     public Map<String, String> getEnvVariables() {
         return envVariables;
+    }
+
+    public List<Bind> getBinds(){
+        return binds;
     }
 
     public Boolean getDisplayLogs() {
@@ -104,6 +110,11 @@ public class ContainerConfig {
 
         public ContainerConfigBuilder addToEnv(String param, String value) {
             container.envVariables.put(param, value);
+            return this;
+        }
+
+        public ContainerConfigBuilder addBind(Bind bind){
+            container.binds.add(bind);
             return this;
         }
 

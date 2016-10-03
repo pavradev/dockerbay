@@ -7,10 +7,11 @@ import java.util.List;
 import javax.ws.rs.client.Client;
 
 /**
- * Environment factory defines:
+ * Defines how to create Environment
+ * Contains information about:
  * 1. which DockerClientWrapper to use
- * 2. with javax.ws.rs.client.Client to use
- * 3. what containers to add into the Environment
+ * 2. which javax.ws.rs.client.Client to use
+ * 3. Container configurations for Environment
  */
 public class EnvironmentFactory {
     private DockerClientWrapper dockerClient;

@@ -2,9 +2,12 @@ package com.github.pavradev.dockerbay;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
@@ -13,6 +16,8 @@ import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jersey.repackaged.com.google.common.collect.ImmutableMap;
 
 /**
  * Container implementation
@@ -56,6 +61,25 @@ class Container {
         } else {
             return this.config.getAlias();
         }
+    }
+
+    public Map<String, String> getContainerBinds(){
+        Map<String, String> binds = new HashMap<>();
+        for(Bind bind : this.config.getBinds()){
+            binds.put(getFrom(bind), bind.getTo());
+        }
+        return binds;
+    }
+
+    private String getFrom(Bind b){
+        return b.isShared() ? b.getFrom() : b.getFrom() + "_" + getNetwork().getName();
+    }
+
+    public Set<String> getVolumes(){
+        return this.config.getBinds().stream()
+                .filter(Bind::isVolume)
+                .map(this::getFrom)
+                .collect(Collectors.toSet());
     }
 
     public String getImage() {
