@@ -1,5 +1,19 @@
 package com.github.pavradev.dockerbay;
 
+import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
+
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
+import java.util.Arrays;
+import java.util.List;
+
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
@@ -7,27 +21,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-
-import java.util.Arrays;
-import java.util.Map;
-
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Response;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.InOrder;
-import org.mockito.Mockito;
-
-import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import static org.mockito.Mockito.*;
 
 /**
  *
@@ -57,6 +51,7 @@ public class ContainerTest {
 
     private Container buildContainer(ContainerConfig containerConfig) {
         container = Container.withConfig(containerConfig);
+        container.setName("dummy");
         container.setDockerClient(dockerClientMock);
         container.setHttpClient(httpClientMock);
         return container;
@@ -72,16 +67,8 @@ public class ContainerTest {
     }
 
     @Test
-    public void shouldGetNameIncludingNetworkName() {
-        Network network = Network.withName("net");
-        container.attachToNetwork(network);
-
-        assertThat(container.getName(), is("alias-net"));
-    }
-
-    @Test
-    public void shouldGetAliasAsNameIfNoNetworkAttached() {
-        assertThat(container.getName(), is("alias"));
+    public void shouldGetName() {
+        assertThat(container.getName(), is("dummy"));
     }
 
     @Test
@@ -93,8 +80,9 @@ public class ContainerTest {
         container = buildContainer(containerConfig);
         container.addBind(Bind.create("/from/path", "/to/path"));
 
-        Map<String, String> containerBinds = container.getBinds();
-        assertThat(containerBinds.get("/from/path"), is("/to/path"));
+        List<Bind> containerBinds = container.getBinds();
+        assertThat(containerBinds.size(), is(1));
+        assertThat(containerBinds.get(0).toString(), is("/from/path:/to/path"));
     }
 
     @Test

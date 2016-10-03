@@ -1,12 +1,14 @@
 package com.github.pavradev.dockerbay;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import org.junit.Test;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import org.junit.Test;
+import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  *
@@ -14,7 +16,7 @@ import org.junit.Test;
 public class EnvironmentFactoryTest {
 
     @Test
-    public void shouldSetNetworkInEnvironment(){
+    public void shouldSetNetworkInEnvironment() {
         EnvironmentFactory environmentFactory = EnvironmentFactory.get();
 
         Environment environment = environmentFactory.makeEnvironment("123");
@@ -23,7 +25,7 @@ public class EnvironmentFactoryTest {
     }
 
     @Test
-    public void shouldSetContainersInEnvironment(){
+    public void shouldSetContainersInEnvironment() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
@@ -42,7 +44,7 @@ public class EnvironmentFactoryTest {
     }
 
     @Test
-    public void shouldSetVolumesInEnvironment(){
+    public void shouldSetVolumesInEnvironment() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
@@ -59,7 +61,7 @@ public class EnvironmentFactoryTest {
     }
 
     @Test
-    public void shouldSetBindsToContainers(){
+    public void shouldSetBindsToContainers() {
         ContainerConfig containerConfig = ContainerConfig.builder()
                 .withAlias("alias")
                 .withImage("image")
@@ -74,8 +76,9 @@ public class EnvironmentFactoryTest {
 
         Container container = environment.findContainerByAlias("alias").get();
         assertThat(container.getBinds().size(), is(3));
-        assertThat(container.getBinds().get("volume_name_123"), is("to/path"));
-        assertThat(container.getBinds().get("/from/private_123"), is("to/private"));
-        assertThat(container.getBinds().get("/from/shared"), is("to/shared"));
+        assertThat(container.getBinds().stream().map(Bind::toString).collect(Collectors.toList()),
+                hasItems("volume_name_123:to/path",
+                        "/from/private_123:to/private",
+                        "/from/shared:to/shared"));
     }
 }

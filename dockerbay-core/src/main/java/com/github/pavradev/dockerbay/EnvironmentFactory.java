@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.ws.rs.client.Client;
 
@@ -44,39 +46,56 @@ public class EnvironmentFactory {
     }
 
     public Environment makeEnvironment(String id) {
-        Network network = Network.withName(id);
-        network.setDockerClient(dockerClient);
+        Network network = createNetwork(id);
 
-        Environment environment = Environment.withNetwork(network);
+        List<Container> containers = containerConfigList.stream()
+                .map(conf -> createContainer(conf, id))
+                .collect(Collectors.toList());
 
         Set<Volume> volumes = new HashSet<>();
-        for (ContainerConfig containerConfig : this.containerConfigList) {
-            Container container = Container.withConfig(containerConfig);
-            container.setDockerClient(dockerClient);
-            container.setHttpClient(httpClient);
-            containerConfig.getSharedBinds().forEach(container::addBind);
-            for(Bind bind : containerConfig.getBinds()){
-                Bind envBind = toEnvironmentBind(bind, id);
-                container.addBind(envBind);
-                if(envBind.isFromVolume()){
-                    volumes.add(createVolume(envBind.getFrom()));
-                }
-            }
-            environment.addContainer(container);
-        }
-        volumes.stream().forEach(environment::addVolume);
+        containers.forEach(c -> volumes.addAll(extractVolumes(c)));
 
+        Environment environment = Environment.withNetwork(network);
+        containers.forEach(environment::addContainer);
+        volumes.forEach(environment::addVolume);
         return environment;
     }
 
-    public Volume createVolume(String name) {
+    private Network createNetwork(String id) {
+        Network network = Network.withName(id);
+        network.setDockerClient(dockerClient);
+        return network;
+    }
+
+    private Container createContainer(ContainerConfig containerConfig, String id){
+        Container container = Container.withConfig(containerConfig);
+        container.setName(containerConfig.getAlias() + "-" + id);
+        container.setDockerClient(dockerClient);
+        container.setHttpClient(httpClient);
+        getBindsForEnv(containerConfig, id).forEach(container::addBind);
+        return container;
+    }
+
+    private List<Bind> getBindsForEnv(ContainerConfig containerConfig, String id){
+        List<Bind> binds = new ArrayList<>();
+        containerConfig.getSharedBinds().forEach(binds::add);
+        containerConfig.getBinds().stream()
+                .map(b -> Bind.create(b.getFrom() + "_" + id, b.getTo()))
+                .forEach(binds::add);
+        return binds;
+    }
+
+    private Set<Volume> extractVolumes(Container container){
+        return container.getBinds().stream()
+                .filter(Bind::isFromVolume)
+                .map(b -> createVolume(b.getFrom()))
+                .collect(Collectors.toSet());
+    }
+
+    private Volume createVolume(String name) {
         Volume volume = Volume.withName(name);
         volume.setDockerClient(dockerClient);
         return volume;
-    }
-
-    private Bind toEnvironmentBind(Bind b, String id){
-        return Bind.create(b.getFrom() + "_" + id, b.getTo());
     }
 
 }

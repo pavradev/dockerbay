@@ -1,21 +1,17 @@
 package com.github.pavradev.dockerbay;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
+import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
-
-import com.github.pavradev.dockerbay.exceptions.EnvironmentException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Docker Container abstraction
@@ -33,10 +29,10 @@ class Container {
     private ContainerStatus status = ContainerStatus.NOT_CREATED;
     private ContainerConfig config;
     private Network network;
-
+    private String name;
     private Integer localPort;
     private Integer localDebugPort;
-    private Map<String, String> binds = new HashMap<>();
+    private List<Bind> binds = new ArrayList<>();
 
     private Container(ContainerConfig config) {
         this.config = config;
@@ -54,19 +50,18 @@ class Container {
         this.dockerClient = dockerClient;
     }
 
+    public void setName(String name){
+        this.name = name;
+    }
     public String getName() {
-        if (this.network != null) {
-            return this.config.getAlias() + "-" + this.network.getName();
-        } else {
-            return this.config.getAlias();
-        }
+        return name;
     }
 
     public void addBind(Bind bind) {
-        binds.put(bind.getFrom(), bind.getTo());
+        binds.add(bind);
     }
 
-    public Map<String, String> getBinds() {
+    public List<Bind> getBinds() {
         return binds;
     }
 

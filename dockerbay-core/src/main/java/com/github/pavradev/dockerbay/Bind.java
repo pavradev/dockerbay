@@ -18,6 +18,14 @@ public class Bind {
         return bind;
     }
 
+    public static Bind fromString(String bindStr) {
+        String[] split = bindStr.split(":");
+        if (split.length != 2) {
+            throw new IllegalArgumentException("Invalid bind sting " + bindStr);
+        }
+        return new Bind(split[0], split[1]);
+    }
+
     public String getFrom() {
         return from;
     }
@@ -28,5 +36,10 @@ public class Bind {
 
     public boolean isFromVolume() {
         return !getFrom().startsWith("/");
+    }
+
+    @Override
+    public String toString() {
+        return getFrom() + ":" + getTo();
     }
 }
