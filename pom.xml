@@ -23,6 +23,7 @@
     <modules>
         <module>dockerbay-core</module>
         <module>dockerbay-docker-client</module>
+        <module>dockerbay-jdocker</module>
         <module>dockerbay-junit</module>
         <module>dockerbay</module>
     </modules>
